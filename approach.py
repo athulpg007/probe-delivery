@@ -1,12 +1,15 @@
 # SOURCE FILENAME : approach.py
 # AUTHOR          : Athul Pradeepkumar Girija, apradee@purdue.edu
-# DATE MODIFIED   : 04/19/2022, 19:31 MT
+# DATE MODIFIED   : 04/20/2022, 21:29 MT
 # REMARKS         : Compute the probe arrival trajectory
 #                   following Kyle's dissertation Chapter 2
 
 import numpy as np
 from numpy import linalg as LA
+
+import matplotlib.pyplot as plt
 from planet import Planet
+
 
 class Approach:
 
@@ -26,6 +29,8 @@ class Approach:
         self.beta = np.arccos(1.0/self.e)
 
         self.v_inf_vec_bi = self.ICRF_to_BI(self.v_inf_vec_icrf)
+
+        self.v_inf_vec_bi_unit = self.v_inf_vec_bi / LA.linalg.norm(self.v_inf_vec_bi)
 
         self.phi_1 = np.arctan(self.v_inf_vec_bi[1]/self.v_inf_vec_bi[0])
 
@@ -77,6 +82,15 @@ class Approach:
         else:
             self.omega = 2*np.pi - np.arccos(np.dot(self.N_vec_bi_unit, self.e_vec_bi_unit))
 
+        self.N_ref_bi_vec_unit = np.array([0, 0, 1])
+        self.S_vec_bi_unit = self.v_inf_vec_bi_unit
+        self.T_vec_bi_unit = np.cross(self.S_vec_bi_unit, self.N_ref_bi_vec_unit)
+        self.R_vec_bi_unit = np.cross(self.S_vec_bi_unit, self.T_vec_bi_unit)
+        self.B_vec_bi_unit = np.cross(self.S_vec_bi_unit, self.h_vec_bi_unit)
+
+        self.b_plane_angle_theta = self.psi + np.pi/2
+
+
 
     def R1(self, theta):
         return np.array([[1, 0, 0],
@@ -97,6 +111,42 @@ class Approach:
 
         return (np.matmul(self.R1(np.pi/2 - self.d0),
                 np.matmul(self.R3(np.pi/2 + self.a0), X_ICRF.T))).T
+
+
+    def pos_vec_bi(self, theta_star):
+
+        r = (self.h**2 / self.planetObj.GM) / (1 + self.e*np.cos(theta_star))
+        theta = theta_star + self.omega
+
+        rx_unit = np.cos(self.OMEGA)*np.cos(theta) - np.sin(self.OMEGA)*np.cos(self.i)*np.sin(theta)
+        ry_unit = np.sin(self.OMEGA)*np.cos(theta) + np.cos(self.OMEGA)*np.cos(self.i)*np.sin(theta)
+        rz_unit = np.sin(self.i)*np.sin(theta)
+
+        pos_vec_bi = r*np.array([rx_unit, ry_unit, rz_unit])
+        return pos_vec_bi
+
+    def plot_r_theta_star(self):
+
+        theta_star_arr = np.linspace(-np.pi/2, np.pi/2, 101)
+
+    def plot_pos_vec_bi(self):
+        self.theta_star_arr = np.linspace(-np.pi/2, np.pi/2, 101)
+        self.pos_vec_bi_arr = self.pos_vec_bi(self.theta_star_arr)
+        self.r_bi_arr = np.sqrt(self.pos_vec_bi_arr[0][:]**2 + self.pos_vec_bi_arr[1][:]**2 + self.pos_vec_bi_arr[2][:]**2)
+
+        fig = plt.figure()
+        plt.ion()
+        ax = fig.add_subplot(projection='3d')
+        ax.scatter(self.pos_vec_bi_arr[0][:],
+                   self.pos_vec_bi_arr[1][:],
+                   self.pos_vec_bi_arr[2][:])
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+
+        plt.show()
+
 
 
 class Test_Approach_Neptune:
@@ -211,3 +261,24 @@ class Test_Approach_Neptune:
 
     def test_omega(self):
         assert abs(self.approach.omega - 1.43110144) < 1e-6
+
+    def test_T_vec_bi_unit(self):
+        ans = (np.matmul(self.approach.R2(self.approach.phi_2),
+                 np.matmul(self.approach.R3(self.approach.phi_1), self.approach.T_vec_bi_unit.T))).T
+
+        assert abs(ans[0]) < 1e-2
+        assert abs(ans[1] + 1) < 0.02
+        assert abs(ans[2]) < 1e-2
+
+    def test_R_vec_bi_unit(self):
+        ans = (np.matmul(self.approach.R2(self.approach.phi_2),
+                 np.matmul(self.approach.R3(self.approach.phi_1), self.approach.R_vec_bi_unit.T))).T
+
+        assert abs(abs(ans[0]) - 1) < 0.02
+        assert abs(ans[1])  < 1e-2
+        assert abs(ans[2]) < 1e-2
+
+    def test_pos_vec_bi(self):
+        pass
+
+
