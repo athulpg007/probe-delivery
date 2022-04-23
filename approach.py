@@ -7,7 +7,6 @@
 import numpy as np
 from numpy import linalg as LA
 
-import matplotlib.pyplot as plt
 from planet import Planet
 
 
@@ -103,20 +102,20 @@ class Approach:
         self.gamma_entry_inertial = -1*np.arccos(self.h/(self.r_EI*self.v_entry_inertial_mag))
 
         self.v_vec_entry_bi = self.vel_vec_bi(self.theta_star_entry)
+        self.v_vec_entry_bi_unit = self.v_vec_entry_bi / LA.linalg.norm(self.v_vec_entry_bi)
 
-        self.latitude_entry = np.arcsin(self.r_vec_entry_bi_unit[2])
-        self.longitude_entry = np.arctan(self.r_vec_entry_bi_unit[1]/self.r_vec_entry_bi_unit[0])
+        self.gamma_entry_inertial_check = np.pi/2 - \
+                                          np.arccos(np.dot(self.r_vec_entry_bi_unit, self.v_vec_entry_bi_unit))
 
-        self.v_entry_atm_bi = np.array([ self.v_vec_entry_bi[0] - \
-                                         self.r_vec_entry_bi_mag * self.planetObj.OMEGA*np.cos(self.latitude_entry)*\
-                                         (-np.sin(self.longitude_entry)),
-                                         self.v_vec_entry_bi[1] - \
-                                         self.r_vec_entry_bi_mag * self.planetObj.OMEGA*np.cos(self.latitude_entry)*\
-                                         (np.cos(self.longitude_entry)),
-                                         self.v_vec_entry_bi[2]
-                                         ])
+        self.latitude_entry_bi = np.arcsin(self.r_vec_entry_bi_unit[2])
+        self.longitude_entry_bi = np.arctan(self.r_vec_entry_bi_unit[1]/self.r_vec_entry_bi_unit[0])
 
-        self.v_entry_atm_bi_mag = LA.linalg.norm(self.v_entry_atm_bi)
+        self.v_vec_entry_atm = self.vel_vec_entry_atm()
+        self.v_entry_atm_mag = LA.linalg.norm(self.v_vec_entry_atm)
+        self.v_vec_entry_atm_unit = self.v_vec_entry_atm / self.v_entry_atm_mag
+
+        self.gamma_entry_atm = np.pi/2 - \
+                               np.arccos(np.dot(self.r_vec_entry_bi_unit, self.v_vec_entry_atm_unit))
 
 
 
@@ -180,12 +179,25 @@ class Approach:
         vel_vec_bi = np.array([vx, vy, vz])
         return vel_vec_bi
 
+    def vel_vec_entry_atm(self):
+        v_entry_atm_x = self.v_vec_entry_bi[0] - \
+                  self.r_vec_entry_bi_mag * self.planetObj.OMEGA * \
+                  np.cos(self.latitude_entry_bi) * (-np.sin(self.longitude_entry_bi))
+        v_entry_atm_y = self.v_vec_entry_bi[1] - \
+                  self.r_vec_entry_bi_mag * self.planetObj.OMEGA * \
+                  np.cos(self.latitude_entry_bi) * (np.cos(self.longitude_entry_bi))
+        v_entry_atm_z = self.v_vec_entry_bi[2]
+
+        vel_vec_entry_atm = np.array([v_entry_atm_x, v_entry_atm_y, v_entry_atm_z])
+        return vel_vec_entry_atm
+
+
 
 class Test_Approach_Neptune:
 
     approach = Approach("NEPTUNE",
                         v_inf_vec_icrf=np.array([17.78952518,  8.62038536,  3.15801163]),
-                        rp=(24764+400)*1e3, psi=np.pi/2, h_EI=1000e3)
+                        rp=(24764+400)*1e3, psi=3*np.pi/2, h_EI=1000e3)
 
     def test_R1_0(self):
 
@@ -331,18 +343,24 @@ class Test_Approach_Neptune:
         assert abs(LA.linalg.norm(self.approach.v_vec_entry_bi) - 30567.901209444415) < 1e-6
 
     def test_latitude_entry(self):
-        ans = self.approach.latitude_e
+        assert abs(self.approach.latitude_entry_bi - 0.142717345) < 1e-6
 
     def test_longitude_entry(self):
-        ans = self.approach.longitude_entry
-        pass
+        assert abs(self.approach.longitude_entry_bi + 0.356847539) < 1e-6
 
-    def test_v_entry_atm_bi(self):
-        ans1 = self.approach.v_entry_atm_bi
-        ans2 = self.approach.v_entry_atm_bi_mag/1e3
-        ans3 = self.approach.v_entry_inertial_mag
-        ans4 = self.approach.i*180/np.pi
-        pass
+    def test_v_vec_entry_atm(self):
+        assert abs(self.approach.v_vec_entry_atm[0] - 4826.76774) < 1e-3
+        assert abs(self.approach.v_vec_entry_atm[1] - 27425.83897) < 1e-3
+        assert abs(self.approach.v_vec_entry_atm[2] - 943.2602005) < 1e-3
 
+    def test_v_entry_atm_mag(self):
+        assert abs(self.approach.v_entry_atm_mag - 27863.3104617) < 1e-4
 
+    def test_gamma_entry_inertial_check(self):
+        ans1 = self.approach.gamma_entry_inertial
+        ans2 = self.approach.gamma_entry_inertial_check
+        assert abs(ans1-ans2) < 1e-6
+
+    def test_gamma_entry_atm(self):
+        assert abs(self.approach.gamma_entry_atm + 0.17576337) < 1e-4
 

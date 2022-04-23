@@ -1,4 +1,4 @@
-# SOURCE FILENAME : compute_arrival_v_inf.py
+# SOURCE FILENAME : arrival.py
 # AUTHOR          : Athul Pradeepkumar Girija, apradee@purdue.edu
 # DATE MODIFIED   : 04/19/2022, 07:54 MT
 # REMARKS         : Compute the arrival v_inf vector in ICRF given two encounter dates and planets
