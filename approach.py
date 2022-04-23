@@ -13,7 +13,7 @@ from planet import Planet
 
 class Approach:
 
-    def __init__(self, arrivalPlanet, v_inf_vec_icrf, rp, psi):
+    def __init__(self, arrivalPlanet, v_inf_vec_icrf, rp, psi, h_EI):
         self.planetObj = Planet(arrivalPlanet)
         self.a0 = self.planetObj.a0
         self.d0 = self.planetObj.d0
@@ -21,6 +21,8 @@ class Approach:
         self.v_inf_vec_icrf = v_inf_vec_icrf
         self.rp = rp
         self.psi = psi
+        self.h_EI = h_EI
+        self.r_EI = self.planetObj.RP + self.h_EI
 
         self.v_inf_mag = LA.norm(self.v_inf_vec_icrf)
 
@@ -90,6 +92,34 @@ class Approach:
 
         self.b_plane_angle_theta = self.psi + np.pi/2
 
+        self.theta_star_entry = -1*np.arccos(((self.h**2/(self.planetObj.GM * self.r_EI)) - 1)*(1.0/self.e))
+
+        self.r_vec_entry_bi = self.pos_vec_bi(self.theta_star_entry)
+        self.r_vec_entry_bi_unit = self.r_vec_entry_bi / LA.linalg.norm(self.r_vec_entry_bi)
+        self.r_vec_entry_bi_mag = LA.linalg.norm(self.r_vec_entry_bi)
+
+        self.v_entry_inertial_mag = np.sqrt((self.v_inf_mag*1e3)**2 + 2*self.planetObj.GM/self.r_EI)
+
+        self.gamma_entry_inertial = -1*np.arccos(self.h/(self.r_EI*self.v_entry_inertial_mag))
+
+        self.v_vec_entry_bi = self.vel_vec_bi(self.theta_star_entry)
+
+        self.latitude_entry = np.arcsin(self.r_vec_entry_bi_unit[2])
+        self.longitude_entry = np.arctan(self.r_vec_entry_bi_unit[1]/self.r_vec_entry_bi_unit[0])
+
+        self.v_entry_atm_bi = np.array([ self.v_vec_entry_bi[0] - \
+                                         self.r_vec_entry_bi_mag * self.planetObj.OMEGA*np.cos(self.latitude_entry)*\
+                                         (-np.sin(self.longitude_entry)),
+                                         self.v_vec_entry_bi[1] - \
+                                         self.r_vec_entry_bi_mag * self.planetObj.OMEGA*np.cos(self.latitude_entry)*\
+                                         (np.cos(self.longitude_entry)),
+                                         self.v_vec_entry_bi[2]
+                                         ])
+
+        self.v_entry_atm_bi_mag = LA.linalg.norm(self.v_entry_atm_bi)
+
+
+
 
 
     def R1(self, theta):
@@ -125,35 +155,37 @@ class Approach:
         pos_vec_bi = r*np.array([rx_unit, ry_unit, rz_unit])
         return pos_vec_bi
 
-    def plot_r_theta_star(self):
+    def r_mag_bi(self, theta_star):
+        r_mag_bi = (self.h**2 / self.planetObj.GM) / (1 + self.e*np.cos(theta_star))
+        return r_mag_bi
 
-        theta_star_arr = np.linspace(-np.pi/2, np.pi/2, 101)
+    def vel_vec_bi(self, theta_star):
 
-    def plot_pos_vec_bi(self):
-        self.theta_star_arr = np.linspace(-np.pi/2, np.pi/2, 101)
-        self.pos_vec_bi_arr = self.pos_vec_bi(self.theta_star_arr)
-        self.r_bi_arr = np.sqrt(self.pos_vec_bi_arr[0][:]**2 + self.pos_vec_bi_arr[1][:]**2 + self.pos_vec_bi_arr[2][:]**2)
+        r_mag_bi = self.r_mag_bi(theta_star)
+        v_mag_bi = np.sqrt((self.v_inf_mag*1e3)**2 + 2*self.planetObj.GM/r_mag_bi)
+        gamma = -1*np.arccos(self.h/(r_mag_bi*v_mag_bi))
 
-        fig = plt.figure()
-        plt.ion()
-        ax = fig.add_subplot(projection='3d')
-        ax.scatter(self.pos_vec_bi_arr[0][:],
-                   self.pos_vec_bi_arr[1][:],
-                   self.pos_vec_bi_arr[2][:])
+        vr = v_mag_bi*np.sin(gamma)
+        vt = v_mag_bi*np.cos(gamma)
+        theta = theta_star + self.omega
 
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        vx = vr*( np.cos(theta)*np.cos(self.OMEGA) - np.sin(theta)*np.cos(self.i)*np.sin(self.OMEGA)) +\
+             vt*(-np.sin(theta)*np.cos(self.OMEGA) - np.cos(theta)*np.cos(self.i)*np.sin(self.OMEGA))
 
-        plt.show()
+        vy = vr*( np.cos(theta)*np.sin(self.OMEGA) + np.sin(theta)*np.cos(self.i)*np.cos(self.OMEGA)) +\
+             vt*( np.cos(theta)*np.cos(self.i)*np.cos(self.OMEGA) - np.sin(theta)*np.sin(self.OMEGA))
 
+        vz = vr*np.sin(theta)*np.sin(self.i) + vt*np.cos(theta)*np.sin(self.i)
+
+        vel_vec_bi = np.array([vx, vy, vz])
+        return vel_vec_bi
 
 
 class Test_Approach_Neptune:
 
     approach = Approach("NEPTUNE",
                         v_inf_vec_icrf=np.array([17.78952518,  8.62038536,  3.15801163]),
-                        rp=(24764+400)*1e3, psi=3*np.pi/2)
+                        rp=(24764+400)*1e3, psi=np.pi/2, h_EI=1000e3)
 
     def test_R1_0(self):
 
@@ -280,5 +312,37 @@ class Test_Approach_Neptune:
 
     def test_pos_vec_bi(self):
         pass
+
+    def test_theta_star_entry(self):
+        delta =  self.approach.r_mag_bi(self.approach.theta_star_entry)- self.approach.r_EI
+        assert delta < 1e-4
+
+    def test_r_vec_entry_bi(self):
+        delta =  abs(LA.linalg.norm(self.approach.r_vec_entry_bi) - self.approach.r_EI)
+        assert delta < 1e-4
+
+    def test_v_entry_mag(self):
+        assert abs(self.approach.v_entry_inertial_mag - 30567.901209444415) < 1e-6
+
+    def test_gamma_entry_inertial(self):
+        assert abs(self.approach.gamma_entry_inertial + 0.16007123941838497) < 1e-6
+
+    def test_v_vec_entry_bi(self):
+        assert abs(LA.linalg.norm(self.approach.v_vec_entry_bi) - 30567.901209444415) < 1e-6
+
+    def test_latitude_entry(self):
+        ans = self.approach.latitude_e
+
+    def test_longitude_entry(self):
+        ans = self.approach.longitude_entry
+        pass
+
+    def test_v_entry_atm_bi(self):
+        ans1 = self.approach.v_entry_atm_bi
+        ans2 = self.approach.v_entry_atm_bi_mag/1e3
+        ans3 = self.approach.v_entry_inertial_mag
+        ans4 = self.approach.i*180/np.pi
+        pass
+
 
 
