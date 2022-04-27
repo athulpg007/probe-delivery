@@ -13,6 +13,10 @@ class Approach:
 
 	def __init__(self, arrivalPlanet, v_inf_vec_icrf_kms, rp, psi,
 				       is_entrySystem=False, h_EI=None):
+		"""
+		Compute the probe/spacecraft approach trajectory for a given
+		v_inf_vec, periapsis radius, psi.
+		"""
 
 		self.planetObj = Planet(arrivalPlanet)
 		self.a0 = self.planetObj.a0
@@ -36,8 +40,8 @@ class Approach:
 		self.v_inf_vec_bi_unit = self.v_inf_vec_bi_kms / LA.norm(self.v_inf_vec_bi_kms)
 
 		self.phi_1 = np.arctan(self.v_inf_vec_bi[1] / self.v_inf_vec_bi[0])
-
 		self.v_inf_vec_bi_prime = (np.matmul(self.R3(self.phi_1), self.v_inf_vec_bi.T)).T
+
 		self.phi_2 = np.arctan(self.v_inf_vec_bi_prime[0] / self.v_inf_vec_bi_prime[2])
 		self.phi_2_analytic = np.arctan((self.v_inf_vec_bi[0] * np.cos(self.phi_1) + \
 									     self.v_inf_vec_bi[1] * np.sin(self.phi_1)) / \
@@ -87,15 +91,20 @@ class Approach:
 		self.S_vec_bi = self.v_inf_vec_bi
 		self.S_vec_bi_unit = self.v_inf_vec_bi_unit
 
-		self.T_vec_bi = np.cross(self.S_vec_bi_unit, self.N_ref_bi)
+		self.T_vec_bi = np.cross(self.S_vec_bi, self.N_ref_bi)
 		self.T_vec_bi_unit = self.T_vec_bi / LA.norm(self.T_vec_bi)
 		self.T_vec_bi_unit_dprime = self.BI_to_BI_dprime(self.T_vec_bi_unit)
 
-		self.R_vec_bi_unit = np.cross(self.S_vec_bi_unit, self.T_vec_bi_unit)
+		self.R_vec_bi = np.cross(self.S_vec_bi, self.T_vec_bi)
+		self.R_vec_bi_unit = self.R_vec_bi / LA.norm(self.R_vec_bi)
 		self.R_vec_bi_unit_dprime = self.BI_to_BI_dprime(self.R_vec_bi_unit)
 
 		self.b_mag = abs(self.a) * np.sqrt(self.e ** 2 - 1)
 		self.b_plane_angle_theta = self.psi + np.pi / 2
+
+		self.B_vec_bi = np.cross(self.S_vec_bi, self.h_vec_bi)
+		self.B_vec_bi_unit = self.B_vec_bi / LA.norm(self.B_vec_bi)
+
 
 		if is_entrySystem == True:
 			self.h_EI = h_EI
@@ -107,7 +116,7 @@ class Approach:
 			self.r_vec_entry_bi_unit = self.r_vec_entry_bi / LA.linalg.norm(self.r_vec_entry_bi)
 			self.r_vec_entry_bi_mag = LA.linalg.norm(self.r_vec_entry_bi)
 
-			self.v_entry_inertial_mag = np.sqrt((self.v_inf_mag * 1e3) ** 2 + 2 * self.planetObj.GM / self.r_EI)
+			self.v_entry_inertial_mag = np.sqrt(self.v_inf_mag**2 + 2 * self.planetObj.GM / self.r_EI)
 
 			self.gamma_entry_inertial = -1 * np.arccos(self.h / (self.r_EI * self.v_entry_inertial_mag))
 
@@ -120,6 +129,10 @@ class Approach:
 			self.latitude_entry_bi = np.arcsin(self.r_vec_entry_bi_unit[2])
 			self.longitude_entry_bi = np.arctan(self.r_vec_entry_bi_unit[1] / self.r_vec_entry_bi_unit[0])
 
+			self.xi_1 = np.arctan(self.r_vec_entry_bi_unit[1]/self.r_vec_entry_bi_unit[0])
+			self.latitude_entry_bi_analytic = np.arctan(self.r_vec_entry_bi_unit[2]/
+														(self.r_vec_entry_bi_unit[0]*np.cos(self.xi_1) + self.r_vec_entry_bi_unit[1]*np.sin(self.xi_1)))
+
 			self.v_vec_entry_atm = self.vel_vec_entry_atm()
 			self.v_entry_atm_mag = LA.linalg.norm(self.v_vec_entry_atm)
 			self.v_vec_entry_atm_unit = self.v_vec_entry_atm / self.v_entry_atm_mag
@@ -129,7 +142,7 @@ class Approach:
 
 
 		else:
-			self.theta_star_periapsis = 0
+			self.theta_star_periapsis = -1 * np.arccos(((self.h ** 2 / (self.planetObj.GM * self.rp)) - 1) * (1.0 / self.e))
 
 	def R1(self, theta):
 		return np.array([[1, 0, 0],
@@ -186,7 +199,7 @@ class Approach:
 	def vel_vec_bi(self, theta_star):
 
 		r_mag_bi = self.r_mag_bi(theta_star)
-		v_mag_bi = np.sqrt((self.v_inf_mag*1e3)**2 + 2*self.planetObj.GM/r_mag_bi)
+		v_mag_bi = np.sqrt((self.v_inf_mag)**2 + 2*self.planetObj.GM/r_mag_bi)
 		gamma = -1*np.arccos(self.h/(r_mag_bi*v_mag_bi))
 
 		vr = v_mag_bi*np.sin(gamma)
@@ -222,67 +235,8 @@ class Test_Approach:
 
 	approach = Approach("NEPTUNE",
 						v_inf_vec_icrf_kms=np.array([17.78952518, 8.62038536, 3.15801163]),
-						rp=(24622+400)*1e3, psi=np.pi/2,
+						rp=(24622+400)*1e3, psi=3*np.pi/2,
 						is_entrySystem=True, h_EI=1000e3)
-
-	def test_v_inf_mag(self):
-		ans1 = self.approach.v_inf_mag_kms
-		ans2 = self.approach.v_inf_mag
-
-	def test_aebeta(self):
-		ans1 = self.approach.a
-		ans2 = self.approach.e
-		ans3 = self.approach.beta
-		pass
-
-	def test_v_inf_bi(self):
-		ans1 = self.approach.v_inf_vec_bi_kms
-		ans2 = self.approach.v_inf_vec_bi
-		ans3 = self.approach.v_inf_vec_bi_mag_kms
-		ans4 = self.approach.v_inf_vec_bi_unit
-		ans5 = np.arcsin(self.approach.v_inf_vec_bi_unit[2])*180/np.pi
-		pass
-
-	def test_phi(self):
-		ans1 = self.approach.phi_1
-		ans2 = self.approach.phi_2
-		ans3 = self.approach.phi_2_analytic
-		pass
-
-	def test_rp_vec(self):
-		ans1 = self.approach.rp_vec_bi
-		ans2 = self.approach.rp_vec_bi_dprime
-		ans3 = self.approach.rp_vec_bi_dprime_analytic
-		pass
-
-	def test_e_vec_bi_unit(self):
-		ans1 = self.approach.rp_vec_bi_unit
-		ans2 = self.approach.e_vec_bi_unit
-		pass
-
-	def test_h_vec_bi_unit(self):
-		ans1 = self.approach.h_vec_bi_unit
-		ans2 = np.arccos(self.approach.h_vec_bi_unit[2])*180/np.pi
-		pass
-
-	def test_N_vec_bi_unit(self):
-		ans1 = self.approach.N_vec_bi_unit
-		pass
-
-	def test_B_plane(self):
-		ans1 = self.approach.T_vec_bi_unit
-		ans2 = self.approach.T_vec_bi_unit_dprime
-		ans3 = self.approach.R_vec_bi_unit
-		ans4 = self.approach.R_vec_bi_unit_dprime
-		pass
-
-
-class Test_Approach_Neptune_Probe:
-
-	approach = Approach("NEPTUNE",
-	                v_inf_vec_icrf_kms=np.array([17.78952518,  8.62038536,  3.15801163]),
-	                rp=(24764+400)*1e3, psi=3*np.pi/2,
-	                is_entrySystem=True, h_EI=1000e3)
 
 	def test_R1_0(self):
 
@@ -322,125 +276,97 @@ class Test_Approach_Neptune_Probe:
 		delta = abs(np.linalg.norm(self.approach.ICRF_to_BI(np.array([1, 2, 3])))) - np.sqrt(14)
 		assert delta < 1e-8
 
+
+	def test_v_inf_mag(self):
+		assert abs(self.approach.v_inf_mag_kms - 20.018) < 1e-3
+		assert abs(self.approach.v_inf_mag - 20018) < 1
+
 	def test_a(self):
-		assert ((abs(self.approach.a) - abs(-17059283.6903))/ abs(-17059283.6903)) < 1e-6
+		assert ((abs(self.approach.a) - abs(-17059283.6903)) / abs(-17059283.6903)) < 1e-6
 
 	def test_e(self):
-		assert (abs(self.approach.e - 2.47509) / 2.47509) < 1e-4
+		assert (abs(self.approach.e - 2.466767) / 2.466767) < 1e-4
 
 	def test_beta(self):
-		assert (abs(self.approach.beta - 1.15488) / 1.15488) < 1e-4
+		assert (abs(self.approach.beta - 1.153392) / 1.153392) < 1e-4
 
-	def test_v_inf_vec_bi(self):
-		delta =  abs(np.linalg.norm(self.approach.v_inf_vec_bi) - self.approach.v_inf_mag)
-		assert delta < 1e-8
+	def test_v_inf_bi(self):
+		assert abs(self.approach.v_inf_vec_bi_mag_kms - 20.018) < 1e-3
+		assert abs(np.arcsin(self.approach.v_inf_vec_bi_unit[2])*180/np.pi - 8.7554787) < 1e-4
 
-	def test_phi_1(self):
-		delta = abs(self.approach.phi_1) - abs(0.0741621)
-		assert delta < 1e-4
+	def test_phi(self):
+		assert abs(self.approach.phi_1 - 0.07416) < 1e-3
+		assert abs(self.approach.phi_2 - self.approach.phi_2_analytic) < 1e-8
 
-	def test_v_inf_vec_bi_prime(self):
-		delta = abs(np.linalg.norm(self.approach.v_inf_vec_bi_prime) - self.approach.v_inf_mag)
-		assert delta < 1e-8
+	def test_rp_vec(self):
+		assert (self.approach.rp_vec_bi_dprime[0] - self.approach.rp_vec_bi_dprime_analytic[0]) < 1e-6
+		assert (self.approach.rp_vec_bi_dprime[1] - self.approach.rp_vec_bi_dprime_analytic[1]) < 1e-6
+		assert (self.approach.rp_vec_bi_dprime[2] - self.approach.rp_vec_bi_dprime_analytic[2]) < 1e-6
 
-	def test_phi_2(self):
-		delta = abs(self.approach.phi_2) - abs(1.417984)
-		assert delta < 1e-4
-
-	def test_phi_2_analytic(self):
-		phi_2_analytic = np.arctan((self.approach.v_inf_vec_bi[0]*np.cos(self.approach.phi_1) +\
-		                            self.approach.v_inf_vec_bi[1]*np.cos(self.approach.phi_1)) /\
-		                            self.approach.v_inf_vec_bi[2])
-
-		assert abs(self.approach.phi_2 - phi_2_analytic) < 1e-2
-
-	def test_rp_vec_bi(self):
-
-		ans1 =  (np.matmul(self.approach.R2(self.approach.phi_2),
-		         np.matmul(self.approach.R3(self.approach.phi_1), self.approach.rp_vec_bi.T))).T
-		ans2 = self.approach.rp_vec_bi_dprime
-
-		assert abs(ans1 - ans2).all() < 1e-6
-
-	def test_rp_vec_bi_magnitude(self):
-		assert abs(LA.linalg.norm(self.approach.rp_vec_bi) - self.approach.rp) < 1e-8
-
-	def test_e_vec_bi(self):
-		ans1 = self.approach.e_vec_bi
-		ans2 = np.array([1.15338569, -2.18462991, 0.1522179])
-		assert max(abs(ans1-ans2)) < 1e-6
-
-	def test_h(self):
-		assert abs(self.approach.h - 773198144434.8495)/773198144434.8495 < 1e-8
+	def test_e_vec_bi_unit(self):
+		assert (self.approach.e_vec_bi_unit[0] - self.approach.rp_vec_bi_unit[0]) < 1e-6
+		assert (self.approach.e_vec_bi_unit[1] - self.approach.rp_vec_bi_unit[1]) < 1e-6
+		assert (self.approach.e_vec_bi_unit[2] - self.approach.rp_vec_bi_unit[2]) < 1e-6
 
 	def test_h_vec_bi_unit(self):
-		ans1 = self.approach.h_vec_bi_unit
-		ans2 = np.array([-0.15179949, -0.01127846, 0.98834696])
-		assert max(abs(ans1-ans2)) < 1e-6
+		assert abs(np.arccos(self.approach.h_vec_bi_unit[2])*180/np.pi - 8.7554787) < 1e-4
+
+	def test_N_vec_bi_unit(self):
+		assert abs(self.approach.N_vec_bi_unit[0] - 0.07409418) < 1e-6
+		assert abs(self.approach.N_vec_bi_unit[1] - -0.99725125) < 1e-6
+		assert abs(self.approach.N_vec_bi_unit[2] - 0.) < 1e-6
 
 	def test_i(self):
 		assert abs(self.approach.i*180/np.pi - 8.75547878) < 1e-4
 
-	def test_N_vec_bi_unit(self):
-		ans1 = self.approach.N_vec_bi_unit
-		ans2 = np.array([ 0.01127846, -0.15179949, 0.0])
-		assert max(abs(ans1 - ans2)) < 1e-6
-
 	def test_OMEGA(self):
-		assert abs(self.approach.OMEGA - 4.723667679) < 1e-6
+		assert abs(self.approach.OMEGA - 4.78655112) < 1e-6
 
 	def test_omega(self):
-		assert abs(self.approach.omega - 1.43110144) < 1e-6
+		assert abs(self.approach.omega - 0.41740417) < 1e-6
 
-	def test_T_vec_bi_unit(self):
-		ans = (np.matmul(self.approach.R2(self.approach.phi_2),
-		         np.matmul(self.approach.R3(self.approach.phi_1), self.approach.T_vec_bi_unit.T))).T
-
-		assert abs(ans[0]) < 1e-2
-		assert abs(ans[1] + 1) < 0.02
-		assert abs(ans[2]) < 1e-2
-
-	def test_R_vec_bi_unit(self):
-		ans = (np.matmul(self.approach.R2(self.approach.phi_2),
-		         np.matmul(self.approach.R3(self.approach.phi_1), self.approach.R_vec_bi_unit.T))).T
-
-		assert abs(abs(ans[0]) - 1) < 0.02
-		assert abs(ans[1])  < 1e-2
-		assert abs(ans[2]) < 1e-2
-
-	def test_pos_vec_bi(self):
-		pass
+	def test_B_plane(self):
+		assert abs(LA.norm(self.approach.R_vec_bi_unit) - 1) < 1e-8
+		assert abs(LA.norm(self.approach.S_vec_bi_unit) - 1) < 1e-8
+		assert abs(LA.norm(self.approach.T_vec_bi_unit) - 1) < 1e-8
+		assert abs(self.approach.T_vec_bi_unit_dprime[1] + 1)  < 1e-8
+		assert abs(self.approach.R_vec_bi_unit_dprime[0] - 1)  < 1e-8
+		assert np.dot(self.approach.R_vec_bi_unit, self.approach.S_vec_bi_unit) < 1e-8
+		assert np.dot(self.approach.R_vec_bi_unit, self.approach.T_vec_bi_unit) < 1e-8
+		assert np.dot(self.approach.S_vec_bi_unit, self.approach.T_vec_bi_unit) < 1e-8
+		assert np.dot(self.approach.S_vec_bi_unit, self.approach.B_vec_bi_unit) < 1e-8
 
 	def test_theta_star_entry(self):
-		delta =  self.approach.r_mag_bi(self.approach.theta_star_entry)- self.approach.r_EI
-		assert delta < 1e-4
+		assert abs(self.approach.theta_star_entry - -0.25726498) < 1e-6
 
 	def test_r_vec_entry_bi(self):
-		delta =  abs(LA.linalg.norm(self.approach.r_vec_entry_bi) - self.approach.r_EI)
+		delta =  abs(LA.norm(self.approach.r_vec_entry_bi) - self.approach.r_EI)
 		assert delta < 1e-4
 
 	def test_v_entry_mag(self):
 		assert abs(self.approach.v_entry_inertial_mag - 30567.901209444415) < 1e-6
 
 	def test_gamma_entry_inertial(self):
-		assert abs(self.approach.gamma_entry_inertial + 0.16007123941838497) < 1e-6
+		assert abs(self.approach.gamma_entry_inertial + 0.18330372) < 1e-6
 
 	def test_v_vec_entry_bi(self):
 		assert abs(LA.linalg.norm(self.approach.v_vec_entry_bi) - 30567.901209444415) < 1e-6
 
 	def test_latitude_entry(self):
-		assert abs(self.approach.latitude_entry_bi - 0.142717345) < 1e-6
+		ans1 = self.approach.latitude_entry_bi
+		ans2 = self.approach.latitude_entry_bi_analytic
+		assert abs(ans1 - ans2) < 1e-8
 
 	def test_longitude_entry(self):
-		assert abs(self.approach.longitude_entry_bi + 0.356847539) < 1e-6
+		assert abs(self.approach.longitude_entry_bi + 1.33832990) < 1e-6
 
 	def test_v_vec_entry_atm(self):
-		assert abs(self.approach.v_vec_entry_atm[0] - 4826.76774) < 1e-3
-		assert abs(self.approach.v_vec_entry_atm[1] - 27425.83897) < 1e-3
-		assert abs(self.approach.v_vec_entry_atm[2] - 943.2602005) < 1e-3
+		assert abs(self.approach.v_vec_entry_atm[0] - 24906.113142) < 1e-3
+		assert abs(self.approach.v_vec_entry_atm[1] - 11733.340980) < 1e-3
+		assert abs(self.approach.v_vec_entry_atm[2] - 4381.2517221) < 1e-3
 
 	def test_v_entry_atm_mag(self):
-		assert abs(self.approach.v_entry_atm_mag - 27863.3104617) < 1e-4
+		assert abs(self.approach.v_entry_atm_mag - 27877.9685250) < 1e-4
 
 	def test_gamma_entry_inertial_check(self):
 		ans1 = self.approach.gamma_entry_inertial
@@ -448,13 +374,15 @@ class Test_Approach_Neptune_Probe:
 		assert abs(ans1-ans2) < 1e-6
 
 	def test_gamma_entry_atm(self):
-		assert abs(self.approach.gamma_entry_atm + 0.17576337) < 1e-4
+		assert abs(self.approach.gamma_entry_atm + 0.2012221) < 1e-4
 
 
-class Test_Approach_Neptune_Orbiter:
+class Test_Approach_Orbiter:
 
-	pass
+	approach = Approach("NEPTUNE",
+						v_inf_vec_icrf_kms=np.array([17.78952518, 8.62038536, 3.15801163]),
+						rp=(24622+4000)*1e3, psi=3*np.pi/2)
 
-    
-
-
+	def test_theta_star_periapsis(self):
+		ans = self.approach.theta_star_periapsis
+		pass

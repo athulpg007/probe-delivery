@@ -18,7 +18,7 @@ class Deflection:
                                       r_dv_rp):
 
         self.planetObj = Planet(arrivalPlanet)
-        self.probe = Approach(arrivalPlanet, v_inf_vec_icrf, rp_probe, psi_probe, is_probe=True, h_EI=h_EI_probe)
+        self.probe = Approach(arrivalPlanet, v_inf_vec_icrf, rp_probe, psi_probe, is_entrySystem=True, h_EI=h_EI_probe)
         self.space = Approach(arrivalPlanet, v_inf_vec_icrf, rp_space, psi_space)
         self.r_dv_rp = r_dv_rp
         self.r_dv = self.r_dv_rp * self.planetObj.RP

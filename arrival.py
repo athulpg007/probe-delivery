@@ -2,7 +2,7 @@
 # AUTHOR          : Athul Pradeepkumar Girija, apradee@purdue.edu
 # DATE MODIFIED   : 04/19/2022, 07:54 MT
 # REMARKS         : Compute the arrival v_inf vector in ICRF given two encounter dates and planets
-#                   (last planetary encounter prior to arrival, arrival date,
+#                   (last planetary encounter prior to arrival, arrival date)
 
 from astropy.time import Time
 from astropy.coordinates import solar_system_ephemeris
@@ -21,21 +21,27 @@ solar_system_ephemeris.set('jpl')
 class Arrival:
 	"""
 
-	Compute the arrival v_inf_vector using a Lambert arc if the last flyby date and
-	arrival dates are known.
+	Compute the arrival declination from either a user-supplied v_inf vector in ICRF,
+	or a v_inf_vector computed from a Lambert arc (last planetary encounter prior to
+	arrival anf arrival date)
 
 	"""
 
 	def init__(self):
-		pass
+		self.v_inf_vec = None
+		self.v_inf_mag = None
+		self.v_inf_vec_unit = None
+		self.north_pole = None
+		self.angle = None
+		self.declination = None
 
-	def set_vinf_vec_manually(self, arrivalPlanet, v_inf_vec):
+
+	def set_vinf_vec_manually(self, arrivalPlanet, v_inf_vec_ICRF_kms):
 		"""
-
 		Set arrival v_inf_vec manually if available
 		"""
 
-		self.v_inf_vec = v_inf_vec
+		self.v_inf_vec = v_inf_vec_ICRF_kms
 		self.v_inf_mag = LA.norm(self.v_inf_vec)
 
 		# compute arrival vinf unit vector
@@ -121,8 +127,6 @@ class Test_Arrival_specified_vinf_vec:
 	def test_compute_declination(self):
 		declination = self.arrival.compute_declination()
 		assert (abs(declination) - 8.755478798) < 1e-6
-
-
 
 
 class Test_Arrival_Neptune_2039:
