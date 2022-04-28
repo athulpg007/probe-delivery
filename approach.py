@@ -140,9 +140,18 @@ class Approach:
 			self.gamma_entry_atm = np.pi / 2 - \
 								   np.arccos(np.dot(self.r_vec_entry_bi_unit, self.v_vec_entry_atm_unit))
 
+			self.v_vec_entry_atm_unit_proj = self.v_vec_entry_atm_unit - \
+										     np.dot(self.v_vec_entry_atm_unit, self.r_vec_entry_bi_unit)*self.r_vec_entry_bi_unit
+
+
+			self.local_latitude_parallel_vec_unit = np.array([ -np.sin(self.longitude_entry_bi),
+															    np.cos(self.longitude_entry_bi),
+															    0.0])
+
+			self.heading_entry_atm = np.arccos(np.dot(self.v_vec_entry_atm_unit_proj, self.local_latitude_parallel_vec_unit))
 
 		else:
-			self.theta_star_periapsis = -1 * np.arccos(((self.h ** 2 / (self.planetObj.GM * self.rp)) - 1) * (1.0 / self.e))
+			self.theta_star_periapsis = 0
 
 	def R1(self, theta):
 		return np.array([[1, 0, 0],
@@ -376,6 +385,9 @@ class Test_Approach:
 	def test_gamma_entry_atm(self):
 		assert abs(self.approach.gamma_entry_atm + 0.2012221) < 1e-4
 
+	def test_heading_entry(self):
+		assert abs(self.approach.heading_entry_atm*180/np.pi - 14.910607) < 1e-4
+
 
 class Test_Approach_Orbiter:
 
@@ -384,5 +396,6 @@ class Test_Approach_Orbiter:
 						rp=(24622+4000)*1e3, psi=3*np.pi/2)
 
 	def test_theta_star_periapsis(self):
-		ans = self.approach.theta_star_periapsis
-		pass
+		ans1 = self.approach.theta_star_periapsis
+		ans2 = self.approach.pos_vec_bi(self.approach.theta_star_periapsis)
+		assert abs((LA.norm(ans2) - self.approach.planetObj.RP)/1e3 - 4000) < 1e-6
