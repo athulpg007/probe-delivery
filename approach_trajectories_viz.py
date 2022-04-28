@@ -1,7 +1,7 @@
 from mayavi import mlab
 import numpy as np
 from tvtk.tools import visual
-from approach2 import Approach
+from approach import Approach
 
 
 def Arrow_From_A_to_B(x1, y1, z1, x2, y2, z2):

@@ -55,6 +55,7 @@ class Deflection:
         self.v_vec_dv_space = (self.space.rp_vec_bi - self.f_space * self.r_vec_dv) / self.g_space
 
         self.v_vec_dv_maneuver = self.v_vec_dv_space - self.v_vec_dv_probe
+        self.v_vec_dv_maneuver_mag = LA.norm(self.v_vec_dv_maneuver)
 
         self.H1 = np.sqrt((self.probe.e-1)/(self.probe.e+1))*np.tan(0.5*self.delta_theta_star_probe)
         self.H_dv_probe = 2*np.arctanh(self.H1)
@@ -79,32 +80,22 @@ class Test_Deflection_Neptune:
     def test_theta_star_dv_probe(self):
         ans = self.deflection.theta_star_dv_probe
         rdv = self.deflection.probe.r_mag_bi(ans)/(self.deflection.planetObj.RP)
+        assert abs(ans + 1.9866386) < 1e-6
         assert abs(rdv - self.deflection.r_dv_rp) < 1e-6
 
     def test_delta_theta_star_probe(self):
-        ans = self.deflection.delta_theta_star_probe
-        pass
+        assert abs(self.deflection.delta_theta_star_probe - 1.9866386) < 1e-6
 
     def test_delta_theta_star_space(self):
-        ans = self.deflection.delta_theta_star_space
         pass
 
     def test_v_vec_dv_probe(self):
-        ans = self.deflection.v_vec_dv_probe
         pass
 
     def test_v_vec_dv_space(self):
-        ans = self.deflection.v_vec_dv_space
         pass
 
     def test_v_vec_dv_maneuver(self):
-        ans1 = self.deflection.v_vec_dv_maneuver
-        ans2 = LA.linalg.norm(ans1)
-        pass
-
-    def test_ad_hoc(self):
-        DV = self.deflection.v_vec_dv_maneuver
-        dv = LA.linalg.norm(DV)
-        TOF_probe = self.deflection.TOF_probe / 86400
-        TOF_space = self.deflection.TOF_space / 86400
-        pass
+        assert abs(self.deflection.v_vec_dv_maneuver_mag - 65.7302) < 1e-2
+        assert abs(self.deflection.TOF_probe / 86400 - 14.17563) < 1e-2
+        assert abs(self.deflection.TOF_space / 86400 - 14.17647) < 1e-2
