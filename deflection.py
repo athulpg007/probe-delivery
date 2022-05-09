@@ -196,14 +196,6 @@ class Test_ProbeOrbiterDeflection_Neptune:
     def test_delta_theta_star_probe(self):
         assert abs(self.deflection.delta_theta_star_probe - 1.9866386) < 1e-6
 
-    def test_delta_theta_star_space(self):
-        pass
-
-    def test_v_vec_dv_probe(self):
-        pass
-
-    def test_v_vec_dv_space(self):
-        pass
 
     def test_v_vec_dv_maneuver(self):
         assert abs(self.deflection.v_vec_dv_maneuver_mag - 65.7302) < 1e-2
@@ -221,14 +213,13 @@ class Test_ProbeProbeDeflection_Neptune:
 
 
     def test_v_vec_dv_maneuver(self):
-        ans1 = self.deflection.v_vec_dv_maneuver_mag
-        ans2 = self.deflection.TOF_probe1/86400
-        ans3 = self.deflection.TOF_probe2/86400
-        ans4 = self.deflection.probe1.gamma_entry_inertial*180/np.pi
-        ans5 = self.deflection.probe2.gamma_entry_inertial*180/np.pi
-        ans6 = self.deflection.probe1.heading_entry_atm*180/np.pi
-        ans7 = self.deflection.probe2.heading_entry_atm*180/np.pi
-        pass
+        assert abs(self.deflection.v_vec_dv_maneuver_mag - 15.6355338) < 1e-6
+        assert abs(self.deflection.TOF_probe1/86400 - 56.8684222) < 1e-6
+        assert abs(self.deflection.TOF_probe2/86400 - 56.8684222) < 1e-6
+        assert abs(self.deflection.probe1.gamma_entry_inertial*180/np.pi - -10.5025297) < 1e-6
+        assert abs(self.deflection.probe2.gamma_entry_inertial*180/np.pi - -10.5025297) < 1e-6
+        assert abs(self.deflection.probe1.heading_entry_atm*180/np.pi - 14.9106075) < 1e-6
+        assert abs(self.deflection.probe2.heading_entry_atm*180/np.pi - 167.5494031) < 1e-6
 
 
 class Test_OrbiterOrbiterDeflection_Neptune:
@@ -241,7 +232,6 @@ class Test_OrbiterOrbiterDeflection_Neptune:
 
 
     def test_v_vec_dv_maneuver(self):
-        ans1 = self.deflection.v_vec_dv_maneuver_mag
-        ans2 = self.deflection.TOF_space1/86400
-        ans3 = self.deflection.TOF_space2/86400
-        pass
+        assert abs(self.deflection.v_vec_dv_maneuver_mag - 68.9076850) < 1e-6
+        assert abs(self.deflection.TOF_space1/86400 - 14.17643992231) < 1e-6
+        assert abs(self.deflection.TOF_space2/86400 - 14.17647834316) < 1e-6
